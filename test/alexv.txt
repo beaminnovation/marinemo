@@ -2,4 +2,6 @@ Acesta este un text.
 
 Acesta este alt text.
 
-A treia modificare
+A treia modificare.
+
+Încă o modificare.
