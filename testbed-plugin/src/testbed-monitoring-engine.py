@@ -1,123 +1,71 @@
-# testbed_monitoring_engine.py
+import os
+import requests
+import json
+import csv
+import threading
+from flask import Flask, jsonify
 
-class TestbedMonitoringEngine:
-    def __init__(self, config):
-        """
-        Initialize the monitoring engine with the given configuration.
+def update_cpe_data():
+    threading.Timer(5.0, update_cpe_data).start()
+    r = requests.get("http://172.16.53.129:7557/devices")
+    data = r.json()
 
-        Args:
-            config (dict): Configuration dictionary containing API endpoints, authentication tokens, etc.
-        """
-        self.config = config
-        self.session = self.create_session()
+    ids_of_interest = [
+        "A4FC77-3TG01797-FVN23500017C"
+    ]
 
-    def create_session(self):
-        """
-        Create a session object for making API requests.
-        
-        Returns:
-            requests.Session: Configured session object.
-        """
-        import requests
-        session = requests.Session()
-        # Configure session (e.g., headers, authentication)
-        session.headers.update({'Authorization': f"Bearer {self.config.get('api_token')}"})
-        return session
+    with open('output.csv', 'w', newline='') as csvfile:
+        fieldnames = ['id', 'BytesReceived', 'BytesSent', 'timestamp']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
-    def get_monitoring_data(self, component_id):
-        """
-        Get monitoring data for a specific component.
+        writer.writeheader()
 
-        Args:
-            component_id (str): Identifier for the component.
+        for device in data:
+            if device['_id'] in ids_of_interest:
+                if device['_id'] == "A4FC77-3TG01797-FVN23500017C":
+                    bytes_received = \
+                    device['Device']['Cellular']['AccessPoint']['1']['X_ALU-COM_AccessPointStats']['BytesReceived'][
+                        '_value']
+                    bytes_sent = \
+                    device['Device']['Cellular']['AccessPoint']['1']['X_ALU-COM_AccessPointStats']['BytesSent'][
+                        '_value']
+                    timestamp = \
+                    device['Device']['Cellular']['AccessPoint']['1']['X_ALU-COM_AccessPointStats']['BytesSent'][
+                        '_timestamp']
 
-        Returns:
-            dict: Monitoring data from the testbed API.
-        """
-        url = self.config.get('monitoring_endpoint').format(component_id=component_id)
-        response = self.session.get(url)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            response.raise_for_status()
+                    writer.writerow({
+                        'id': device['_id'],
+                        'BytesReceived': bytes_received,
+                        'BytesSent': bytes_sent,
+                        'timestamp': timestamp
+                    })
 
-    def get_all_components_status(self):
-        """
-        Get the status of all components in the testbed.
+    print("Data extraction and CSV writing complete.")
 
-        Returns:
-            dict: Status information of all components.
-        """
-        url = self.config.get('all_components_status_endpoint')
-        response = self.session.get(url)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            response.raise_for_status()
+    input_csv_path = './output.csv'
+    rows_to_insert = []
 
-    def start_monitoring(self, component_id):
-        """
-        Start monitoring a specific component.
+    with open(input_csv_path, newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            formatted_row = {
+                u'id': row['id'],
+                u'BytesReceived': row['BytesReceived'],
+                u'BytesSent': row['BytesSent'],
+                u'timestamp': row['timestamp']
+            }
+            rows_to_insert.append(formatted_row)
 
-        Args:
-            component_id (str): Identifier for the component.
+    return rows_to_insert
 
-        Returns:
-            dict: Response from the testbed API.
-        """
-        url = self.config.get('start_monitoring_endpoint').format(component_id=component_id)
-        response = self.session.post(url)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            response.raise_for_status()
 
-    def stop_monitoring(self, component_id):
-        """
-        Stop monitoring a specific component.
+app = Flask(__name__)
 
-        Args:
-            component_id (str): Identifier for the component.
+@app.route('/cpe-monitoring', methods=['GET'])
+def get_cpe_data():
+    # Return the list of CPE statuses as JSON
+    return jsonify(update_cpe_data())
 
-        Returns:
-            dict: Response from the testbed API.
-        """
-        url = self.config.get('stop_monitoring_endpoint').format(component_id=component_id)
-        response = self.session.post(url)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            response.raise_for_status()
+if __name__ == '__main__':
+    app.run(debug=True)
 
-    def analyze_data(self, component_id, metrics):
-        """
-        Analyze the collected monitoring data.
-
-        Args:
-            component_id (str): Identifier for the component.
-            metrics (list): List of metrics to analyze.
-
-        Returns:
-            dict: Analysis results.
-        """
-        url = self.config.get('analyze_data_endpoint').format(component_id=component_id)
-        response = self.session.post(url, json={'metrics': metrics})
-        if response.status_code == 200:
-            return response.json()
-        else:
-            response.raise_for_status()
-
-# Example usage
-if __name__ == "__main__":
-    config = {
-        'api_token': 'your_api_token_here',
-        'monitoring_endpoint': 'https://example.com/api/monitoring/{component_id}',
-        'all_components_status_endpoint': 'https://example.com/api/monitoring/all-components',
-        'start_monitoring_endpoint': 'https://example.com/api/monitoring/{component_id}/start',
-        'stop_monitoring_endpoint': 'https://example.com/api/monitoring/{component_id}/stop',
-        'analyze_data_endpoint': 'https://example.com/api/monitoring/{component_id}/analyze',
-    }
-
-    engine = TestbedMonitoringEngine(config)
-    status = engine.get_all_components_status()
-    print("All Components Status:", status)
