@@ -1,141 +1,127 @@
-# testbed_api_engine.py
+from flask import Flask, jsonify, request, abort
+import yaml
+import os
 
-class TestbedAPIEngine:
-    def __init__(self, config):
-        """
-        Initialize the API engine with the given configuration.
+app = Flask(__name__)
 
-        Args:
-            config (dict): Configuration dictionary containing API endpoints, authentication tokens, etc.
-        """
-        self.config = config
-        self.session = self.create_session()
+# Paths to the YAML files
+amf_yaml_file_path = 'sample.yaml'
+ran_yaml_file_path = 'gnb_b210_20MHz_oneplus_8t.yml'
 
-    def create_session(self):
-        """
-        Create a session object for making API requests.
-        
-        Returns:
-            requests.Session: Configured session object.
-        """
-        import requests
-        session = requests.Session()
-        # Configure session (e.g., headers, authentication)
-        session.headers.update({'Authorization': f"Bearer {self.config.get('api_token')}"})
-        return session
 
-    def get_status(self):
-        """
-        Get the status of the testbed.
+def read_yaml(file_path):
+    with open(file_path, 'r') as file:
+        return yaml.safe_load(file)
 
-        Returns:
-            dict: Status information of the testbed.
-        """
-        url = self.config.get('status_endpoint')
-        response = self.session.get(url)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            response.raise_for_status()
 
-    def start_test(self, test_id, params):
-        """
-        Start a test on the testbed.
+def write_yaml(file_path, data):
+    with open(file_path, 'w') as file:
+        yaml.safe_dump(data, file, default_flow_style=False)
 
-        Args:
-            test_id (str): Identifier for the test.
-            params (dict): Parameters for the test.
 
-        Returns:
-            dict: Response from the testbed API.
-        """
-        url = self.config.get('start_test_endpoint').format(test_id=test_id)
-        response = self.session.post(url, json=params)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            response.raise_for_status()
+def get_new_sd(existing_sds):
+    existing_sds_int = [int(sd, 16) for sd in existing_sds]
+    new_sd_int = max(existing_sds_int) + 1
+    new_sd_hex = f'{new_sd_int:06x}'
+    return new_sd_hex
 
-    def stop_test(self, test_id):
-        """
-        Stop a test on the testbed.
 
-        Args:
-            test_id (str): Identifier for the test.
+def update_amf_configuration(sst, sd):
+    data = read_yaml(amf_yaml_file_path)
+    amf_config = data.get('amf', {})
+    slices = amf_config.get('s_nssai', [])
 
-        Returns:
-            dict: Response from the testbed API.
-        """
-        url = self.config.get('stop_test_endpoint').format(test_id=test_id)
-        response = self.session.post(url)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            response.raise_for_status()
+    new_s_nssai = {'- sst': sst, '  sd': sd}
 
-    def get_results(self, test_id):
-        """
-        Get the results of a test.
+    slices.append(new_s_nssai)
+    amf_config['s_nssai'] = slices
+    data['amf'] = amf_config
 
-        Args:
-            test_id (str): Identifier for the test.
+    write_yaml(amf_yaml_file_path, data)
+    return new_s_nssai
 
-        Returns:
-            dict: Test results from the testbed API.
-        """
-        url = self.config.get('results_endpoint').format(test_id=test_id)
-        response = self.session.get(url)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            response.raise_for_status()
 
-    def create_slice(self, slice_params):
-        """
-        Create a new network slice on the testbed.
+def delete_amf_slice(sst, sd):
+    data = read_yaml(amf_yaml_file_path)
+    amf_config = data.get('amf', {})
+    slices = amf_config.get('s_nssai', [])
 
-        Args:
-            slice_params (dict): Parameters for the network slice.
+    new_slices = [slice_ for slice_ in slices if not (slice_['sst'] == sst and slice_['sd'] == sd)]
 
-        Returns:
-            dict: Response from the testbed API.
-        """
-        url = self.config.get('create_slice_endpoint')
-        response = self.session.post(url, json=slice_params)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            response.raise_for_status()
+    if len(new_slices) == len(slices):
+        return None  # No slice was removed
 
-    def delete_slice(self, slice_id):
-        """
-        Delete an existing network slice on the testbed.
+    amf_config['s_nssai'] = new_slices
+    data['amf'] = amf_config
 
-        Args:
-            slice_id (str): Identifier for the network slice.
+    write_yaml(amf_yaml_file_path, data)
+    return {'sst': sst, 'sd': sd}
 
-        Returns:
-            dict: Response from the testbed API.
-        """
-        url = self.config.get('delete_slice_endpoint').format(slice_id=slice_id)
-        response = self.session.delete(url)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            response.raise_for_status()
 
-# Example usage
-if __name__ == "__main__":
-    config = {
-        'api_token': 'your_api_token_here',
-        'status_endpoint': 'https://example.com/api/status',
-        'start_test_endpoint': 'https://example.com/api/tests/{test_id}/start',
-        'stop_test_endpoint': 'https://example.com/api/tests/{test_id}/stop',
-        'results_endpoint': 'https://example.com/api/tests/{test_id}/results',
-        'create_slice_endpoint': 'https://example.com/api/slices',
-        'delete_slice_endpoint': 'https://example.com/api/slices/{slice_id}',
-    }
+def update_ran_configuration(new_s_nssai):
+    data = read_yaml(ran_yaml_file_path)
+    slicing = data.get('slicing', [])
 
-    engine = TestbedAPIEngine(config)
-    status = engine.get_status()
-    print("Status:", status)
+    slicing.append({'sst': new_s_nssai['sst'], 'sd': new_s_nssai['sd']})
+    data['slicing'] = slicing
+
+    write_yaml(ran_yaml_file_path, data)
+    return new_s_nssai
+
+
+def delete_ran_slice(sst, sd):
+    data = read_yaml(ran_yaml_file_path)
+    slicing = data.get('slicing', [])
+
+    new_slicing = [slice_ for slice_ in slicing if not (slice_['sst'] == sst and slice_['sd'] == sd)]
+
+    if len(new_slicing) == len(slicing):
+        return None  # No slice was removed
+
+    data['slicing'] = new_slicing
+
+    write_yaml(ran_yaml_file_path, data)
+    return {'sst': sst, 'sd': sd}
+
+
+@app.route('/api/add_slice', methods=['POST'])
+def add_slice():
+    if not request.is_json:
+        abort(400, 'Request body must be JSON')
+
+    data = request.get_json()
+    sst = data.get('sst')
+    sd = data.get('sd')
+
+    new_slice = update_amf_configuration(sst, sd)
+    updated_ran_slice = update_ran_configuration(new_slice)
+    os.system("sudo systemctl restart open5gs-smfd")
+    os.system("sudo systemctl restart open5gs-amfd")
+    os.system("sudo systemctl restart open5gs-upfd")
+    os.system("sudo systemctl restart open5gs-nssfd")
+    return jsonify(updated_ran_slice)
+
+
+@app.route('/api/delete_slice', methods=['DELETE'])
+def delete_slice_api():
+    if not request.is_json:
+        abort(400, 'Request body must be JSON')
+
+    data = request.get_json()
+    sst = data.get('sst')
+    sd = data.get('sd')
+
+    if sst is None or sd is None:
+        abort(400, 'Missing sst or sd parameter')
+
+    deleted_amf_slice = delete_amf_slice(sst, sd)
+    deleted_ran_slice = delete_ran_slice(sst, sd)
+
+    if deleted_amf_slice is None or deleted_ran_slice is None:
+        abort(404, 'Slice not found')
+
+    return jsonify(deleted_amf_slice)
+
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
