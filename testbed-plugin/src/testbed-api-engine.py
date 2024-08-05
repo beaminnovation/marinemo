@@ -5,8 +5,8 @@ import os
 app = Flask(__name__)
 
 # Paths to the YAML files
-amf_yaml_file_path = 'sample.yaml'
-ran_yaml_file_path = 'gnb_b210_20MHz_oneplus_8t.yml'
+core_yaml_file_path = 'sample.yaml'
+ran_yaml_file_path = 'gnb_b210.yml'
 
 
 def read_yaml(file_path):
@@ -26,23 +26,31 @@ def get_new_sd(existing_sds):
     return new_sd_hex
 
 
-def update_amf_configuration(sst, sd):
-    data = read_yaml(amf_yaml_file_path)
+def update_core_configuration(sst, sd):
+    data = read_yaml(core_yaml_file_path)
+    new_s_nssai = {'- sst': sst, '  sd': sd}
+    # amf
     amf_config = data.get('amf', {})
     slices = amf_config.get('s_nssai', [])
-
-    new_s_nssai = {'- sst': sst, '  sd': sd}
 
     slices.append(new_s_nssai)
     amf_config['s_nssai'] = slices
     data['amf'] = amf_config
 
-    write_yaml(amf_yaml_file_path, data)
+    # nssf
+    nssf_config = data.get('nssf', {})
+    slices = nssf_config.get('s_nssai', [])
+
+    slices.append(new_s_nssai)
+    nssf_config['s_nssai'] = slices
+    data['nssf'] = nssf_config
+
+    write_yaml(core_yaml_file_path, data)
     return new_s_nssai
 
 
-def delete_amf_slice(sst, sd):
-    data = read_yaml(amf_yaml_file_path)
+def delete_core_slice(sst, sd):
+    data = read_yaml(core_yaml_file_path)
     amf_config = data.get('amf', {})
     slices = amf_config.get('s_nssai', [])
 
@@ -54,7 +62,7 @@ def delete_amf_slice(sst, sd):
     amf_config['s_nssai'] = new_slices
     data['amf'] = amf_config
 
-    write_yaml(amf_yaml_file_path, data)
+    write_yaml(core_yaml_file_path, data)
     return {'sst': sst, 'sd': sd}
 
 
@@ -93,7 +101,7 @@ def add_slice():
     sst = data.get('sst')
     sd = data.get('sd')
 
-    new_slice = update_amf_configuration(sst, sd)
+    new_slice = update_core_configuration(sst, sd)
     updated_ran_slice = update_ran_configuration(new_slice)
     os.system("sudo systemctl restart open5gs-smfd")
     os.system("sudo systemctl restart open5gs-amfd")
