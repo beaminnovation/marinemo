@@ -1,0 +1,77 @@
+# config.yaml
+
+# Kafka Configuration
+kafka:
+  broker: 'localhost:9092'
+  topic: 'maritime-iot-data'
+
+# Database Configuration
+database:
+  uri: 'postgresql://username:password@localhost:5432/maritime_db'
+  table: 'iot_data'
+
+# API Endpoints
+api:
+  host: '0.0.0.0'
+  port: 5000
+  alerts_endpoint: '/alerts'
+  decisions_endpoint: '/decisions'
+
+# Thresholds for Alerts
+thresholds:
+  signal_strength: -85  # dBm
+  latency: 50           # ms
+  packet_loss: 2        # percentage
+  throughput: 100       # Mbps
+
+# Machine Learning Model
+ml_model:
+  model_path: 'data/models/ml_model.pkl'
+  retrain_interval: 86400  # Retrain every 24 hours (in seconds)
+
+# Base URL for Decision API Calls
+api_base_url: 'http://your-api-base-url.com/api'  #To update according to the actual URL we will be using
+
+# Templates for Decision Engine
+templates:
+  high_signal_strength:
+    url: '{api_base_url}/high-signal-action'
+    method: 'POST'
+    headers:
+      Content-Type: 'application/json'
+    data:
+      action: 'adjust_antenna'
+  
+  high_latency:
+    url: '{api_base_url}/high-latency-action'
+    method: 'POST'
+    headers:
+      Content-Type: 'application/json'
+    data:
+      action: 'increase_bandwidth'
+
+  high_packet_loss:
+    url: '{api_base_url}/high-packet-loss-action'
+    method: 'POST'
+    headers:
+      Content-Type: 'application/json'
+    data:
+      action: 'optimize_routing'
+
+  low_throughput:
+    url: '{api_base_url}/low-throughput-action'
+    method: 'POST'
+    headers:
+      Content-Type: 'application/json'
+    data:
+      action: 'allocate_resources'
+
+# Logging Configuration
+logging:
+  level: 'INFO'
+  file: 'logs/maritime_iot.log'
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
+# Miscellaneous
+misc:
+  poll_interval: 60  # Polling interval for alerts (in seconds)
