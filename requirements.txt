@@ -1,0 +1,42 @@
+# Flask for creating the API
+Flask==2.3.3
+
+# Requests for making HTTP requests
+requests==2.31.0
+
+# Kafka-Python for Kafka integration
+kafka-python==2.0.2
+
+# SQLAlchemy for database interaction
+SQLAlchemy==2.0.21
+
+# Pandas for data manipulation
+pandas==2.0.3
+
+# Scikit-learn for machine learning algorithms
+scikit-learn==1.3.0
+
+# Joblib for model serialization
+joblib==1.3.2
+
+# Numpy for numerical operations
+numpy==1.26.0
+
+# Werkzeug for WSGI support in Flask
+Werkzeug==2.3.7
+
+# Gunicorn for running the Flask app in production
+gunicorn==21.2.0
+
+# Logging and utilities
+loguru==0.6.0
+
+# Testing frameworks
+pytest==7.4.1
+pytest-mock==3.11.1
+
+# Dotenv for environment variables
+python-dotenv==2.1.3
+
+# Flask-Cors for handling Cross-Origin Resource Sharing (CORS)
+Flask-Cors==4.0.0
