@@ -111,7 +111,7 @@ def add_slice():
 
 
 @slices_blueprint.route('/api/delete_slice', methods=['DELETE'])
-def delete_slice_api():
+def delete_slice():
     if not request.is_json:
         abort(400, 'Request body must be JSON')
 
@@ -122,10 +122,10 @@ def delete_slice_api():
     if sst is None or sd is None:
         abort(400, 'Missing sst or sd parameter')
 
-    deleted_amf_slice = delete_amf_slice(sst, sd)
+    deleted_core_slice = delete_core_slice(sst, sd)
     deleted_ran_slice = delete_ran_slice(sst, sd)
 
-    if deleted_amf_slice is None or deleted_ran_slice is None:
+    if deleted_core_slice is None or deleted_ran_slice is None:
         abort(404, 'Slice not found')
 
-    return jsonify(deleted_amf_slice)
+    return jsonify(deleted_core_slice)
