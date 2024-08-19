@@ -13,40 +13,37 @@ def read_yaml(file_path):
     with open(file_path, 'r') as file:
         return yaml.safe_load(file)
 
-
 def write_yaml(file_path, data):
     with open(file_path, 'w') as file:
         yaml.safe_dump(data, file, default_flow_style=False)
 
-
-def get_new_sd(existing_sds):
-    existing_sds_int = [int(sd, 16) for sd in existing_sds]
-    new_sd_int = max(existing_sds_int) + 1
-    new_sd_hex = f'{new_sd_int:06x}'
-    return new_sd_hex
-
-
 def update_core_configuration(sst, sd):
     data = read_yaml(core_yaml_file_path)
-    new_s_nssai = {'- sst': sst, '  sd': sd}
     # amf
-    amf_config = data.get('amf', {})
-    slices = amf_config.get('s_nssai', [])
+    # Apply the transformation to add an additional s_nssai item
+    if 'amf' in data:
+        for plmn in data['amf']['plmn_support']:
+            # Check if the s_nssai list is correct and modify it if necessary
+            if 's_nssai' in plmn and {'sst': sst, 'sd': sd} not in plmn['s_nssai']:
+                plmn['s_nssai'].append({'sst': sst, 'sd': sd})
 
-    slices.append(new_s_nssai)
-    amf_config['s_nssai'] = slices
-    data['amf'] = amf_config
+    # Save the modified data to a new YAML file with customized indentation
+    with open(core_yaml_file_path, 'w') as file:
+        yaml.safe_dump(data, file, default_flow_style=False, indent=2)
 
     # nssf
-    nssf_config = data.get('nssf', {})
-    slices = nssf_config.get('s_nssai', [])
+    # Apply the transformation to add an additional s_nssai item
+    if 'nssf' in data:
+        for plmn in data['nssf']['plmn_support']:
+            # Check if the s_nssai list is correct and modify it if necessary
+            if 's_nssai' in plmn and {'sst': sst, 'sd': sd} not in plmn['s_nssai']:
+                plmn['s_nssai'].append({'sst': sst, 'sd': sd})
 
-    slices.append(new_s_nssai)
-    nssf_config['s_nssai'] = slices
-    data['nssf'] = nssf_config
+    # Save the modified data to a new YAML file with customized indentation
+    with open(core_yaml_file_path, 'w') as file:
+        yaml.safe_dump(data, file, default_flow_style=False, indent=2)
 
-    write_yaml(core_yaml_file_path, data)
-    return new_s_nssai
+    return {'sst': sst, 'sd': sd}
 
 
 def delete_core_slice(sst, sd):
@@ -66,16 +63,21 @@ def delete_core_slice(sst, sd):
     return {'sst': sst, 'sd': sd}
 
 
-def update_ran_configuration(new_s_nssai):
+def update_ran_configuration(sst, sd):
     data = read_yaml(ran_yaml_file_path)
-    slicing = data.get('slicing', [])
 
-    slicing.append({'sst': new_s_nssai['sst'], 'sd': new_s_nssai['sd']})
-    data['slicing'] = slicing
+    # Add the new slicing entry
+    new_slicing_entry = {'sst': sst, 'sd': sd}
+    if 'slicing' in data:
+        data['slicing'].append(new_slicing_entry)
+    else:
+        data['slicing'] = [new_slicing_entry]
 
-    write_yaml(ran_yaml_file_path, data)
-    return new_s_nssai
+    # Save the modified data back to a new YAML file
+    with open(ran_yaml_file_path, 'w') as file:
+        yaml.safe_dump(data, file, default_flow_style=False)
 
+    return {'sst': sst, 'sd': sd}
 
 def delete_ran_slice(sst, sd):
     data = read_yaml(ran_yaml_file_path)
@@ -92,7 +94,7 @@ def delete_ran_slice(sst, sd):
     return {'sst': sst, 'sd': sd}
 
 
-@slices_blueprint.route('/api/add_slice', methods=['POST'])
+@slices_blueprint.route('/api/add-slice', methods=['POST'])
 def add_slice():
     if not request.is_json:
         abort(400, 'Request body must be JSON')
@@ -101,16 +103,16 @@ def add_slice():
     sst = data.get('sst')
     sd = data.get('sd')
 
-    new_slice = update_core_configuration(sst, sd)
-    updated_ran_slice = update_ran_configuration(new_slice)
+    new_core_slice = update_core_configuration(sst, sd)
+    new_ran_slice = update_ran_configuration(sst, sd)
     os.system("sudo systemctl restart open5gs-smfd")
     os.system("sudo systemctl restart open5gs-amfd")
     os.system("sudo systemctl restart open5gs-upfd")
     os.system("sudo systemctl restart open5gs-nssfd")
-    return jsonify(updated_ran_slice)
+    return jsonify(new_ran_slice)
 
 
-@slices_blueprint.route('/api/delete_slice', methods=['DELETE'])
+@slices_blueprint.route('/api/delete-slice', methods=['DELETE'])
 def delete_slice():
     if not request.is_json:
         abort(400, 'Request body must be JSON')
@@ -129,3 +131,22 @@ def delete_slice():
         abort(404, 'Slice not found')
 
     return jsonify(deleted_core_slice)
+
+@slices_blueprint.route('/api/get-slices', methods=['GET'])
+def get_slices():
+    data = read_yaml(core_yaml_file_path)
+    if 'amf' not in data or 'plmn_support' not in data['amf']:
+        return jsonify({'error': 'AMF configuration or plmn_support not found'}), 400
+
+    plmn_support = data['amf']['plmn_support']
+    slices = []
+
+    for plmn in plmn_support:
+        if 's_nssai' in plmn:
+            for snssai in plmn['s_nssai']:
+                slices.append({
+                    'sst': snssai.get('sst'),
+                    'sd': snssai.get('sd')
+                })
+
+    return jsonify(slices), 200

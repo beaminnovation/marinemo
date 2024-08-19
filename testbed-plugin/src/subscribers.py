@@ -6,7 +6,7 @@ Open5GS = Open5GS("127.0.0.1", 9999)
 
 subscribers_blueprint = Blueprint('subscribers', __name__)
 
-@subscribers_blueprint.route('/api/subscriberProvisioning', methods=['POST'])
+@subscribers_blueprint.route('/api/subscriber-provisioning', methods=['POST'])
 def provision_subscriber():
     """
     Provision a new subscriber
@@ -75,7 +75,7 @@ def provision_subscriber():
 
     return jsonify({"message": "Subscriber provisioned successfully"}), 200
 
-@subscribers_blueprint.route('/api/subscriberUpdate', methods=['POST'])
+@subscribers_blueprint.route('/api/subscriber-update', methods=['POST'])
 def associate_subscriber_with_slice():
     """
     Associate an existing subscriber with a different slice
@@ -128,7 +128,7 @@ def associate_subscriber_with_slice():
 
     return jsonify({"message": "Subscriber updated successfully"}), 200
 
-@subscribers_blueprint.route('/api/subscriberDelete', methods=['DELETE'])
+@subscribers_blueprint.route('/api/subscriber-delete', methods=['DELETE'])
 def delete_subscriber():
     """
     Delete an existing subscriber
@@ -136,3 +136,20 @@ def delete_subscriber():
     imsi = request.args.get('imsi')
     Open5GS.DeleteSubscriber(imsi)
     return jsonify({"message": f"Subscriber {imsi} deleted successfully"}), 200
+
+@subscribers_blueprint.route('/api/subscribers', methods=['GET'])
+def get_subscribers():
+    """
+    Delete an existing subscriber
+    """
+    data = Open5GS.GetSubscribers()
+    return jsonify(data), 200
+
+@subscribers_blueprint.route('/api/subscriber', methods=['GET'])
+def get_subscriber():
+    """
+    Delete an existing subscriber
+    """
+    imsi = request.args.get('imsi')
+    data = Open5GS.GetSubscriber(imsi)
+    return jsonify(data), 200
