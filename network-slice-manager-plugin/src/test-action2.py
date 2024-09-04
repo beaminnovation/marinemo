@@ -3,6 +3,8 @@ import numpy as np
 from joblib import load
 from confluent_kafka import Consumer, KafkaError, KafkaException
 import requests
+from influxdb_client import InfluxDBClient, Point, WritePrecision
+from influxdb_client.client.write_api import SYNCHRONOUS
 
 # Load the trained model and scaler
 clf_ensemble = load('traffic_model.joblib')
@@ -22,11 +24,19 @@ conf = {
 consumer = Consumer(conf)
 consumer.subscribe(['test-data'])
 
+# InfluxDB configuration
+influxdb_url = 'http://localhost:8086'
+token = 'your_influxdb_token'
+org = 'your_org'
+bucket = 'your_bucket'
+
+# Connect to InfluxDB
+client = InfluxDBClient(url=influxdb_url, token=token, org=org)
+write_api = client.write_api(write_options=SYNCHRONOUS)
 
 # Function to process messages from Kafka and make predictions
 def process_message(msg):
     try:
-        # Assuming msg.value() is a CSV line or JSON string with the data
         test_data = pd.read_json(msg.value())  # Adjust if data is in CSV or other format
 
         unique_ids = test_data['id'].unique()
@@ -62,6 +72,15 @@ def process_message(msg):
             }
 
             response = requests.post('http://192.168.0.91:5000/update-subscriber', headers=headers, json=json_data)
+
+        alerts = []
+        for i in range(1, len(predictions_df)):
+            if predictions_df['predicted_traffic_type'].iloc[i] != predictions_df['predicted_traffic_type'].iloc[i - 1]:
+                alert_time = predictions_df['timestamp'].iloc[i]
+                alert_type = predictions_df['predicted_traffic_type'].iloc[i]
+                alerts.append((alert_time, alert_type))
+                point = Point("traffic_alert").tag("imsi", imsi).field("alert_type", alert_type).time(alert_time, WritePrecision.NS)
+                write_api.write(bucket=bucket, org=org, record=point)
 
     except Exception as e:
         print(f"Failed to process message: {e}")
