@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from slices import slices_blueprint
 from subscribers import subscribers_blueprint
 

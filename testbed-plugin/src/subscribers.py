@@ -1,8 +1,9 @@
 from flask import Blueprint, jsonify, request
-import Open5GS
+from socket import socket
+from Open5GS import Open5GS
 import json
 import os
-Open5GS = Open5GS("127.0.0.1", 9999)
+Open5GS = Open5GS('127.0.0.1', 27017)
 
 subscribers_blueprint = Blueprint('subscribers', __name__)
 
@@ -68,18 +69,16 @@ def provision_subscriber():
     # Add new subscriber
     Open5GS.AddSubscriber(sub_data)
 
-    # Create the persistent json file
-    filename = f'{imsi}.json'
-    with open(filename, 'w') as f:
-        json.dump(sub_data, f, indent=4)
+    # # Create the persistent json file
+    # filename = f'{imsi}.json'
+    # with open(filename, 'w') as f:
+    #     json.dump(sub_data, f, indent=4)
 
     return jsonify({"message": "Subscriber provisioned successfully"}), 200
 
 @subscribers_blueprint.route('/api/subscriber-update', methods=['POST'])
-def associate_subscriber_with_slice():
-    """
-    Associate an existing subscriber with a different slice
-    """
+def subscriber_update():
+
     data = request.json
     if not data:
         return jsonify({"error": "Invalid request, JSON data required"}), 400
@@ -88,17 +87,19 @@ def associate_subscriber_with_slice():
     if not imsi:
         return jsonify({"error": "IMSI is required"}), 400
 
-    filename = f'{imsi}.json'
-    if not os.path.exists(filename):
-        return jsonify({"error": f"No subscriber data found for IMSI {imsi}"}), 404
+    # filename = f'{imsi}.json'
+    # if not os.path.exists(filename):
+    #     return jsonify({"error": f"No subscriber data found for IMSI {imsi}"}), 404
 
-    # Implement logic to associate subscriber with slice
-    # Load the existing data
-    with open(filename, 'r') as f:
-        sub_data = json.load(f)
+    # # Implement logic to associate subscriber with slice
+    # # Load the existing data
+    # with open(filename, 'r') as f:
+    #     sub_data = json.load(f)
+
+    sub_data = Open5GS.GetSubscriber(imsi)
 
     # Update the fields provided in the request
-    sub_data['imsi'] = imsi  # Ensuring IMSI remains consistent with the filename
+    sub_data['imsi'] = imsi  
     sub_data['security']['k'] = data.get('k', sub_data['security']['k'])
     sub_data['security']['opc'] = data.get('opc', sub_data['security']['opc'])
 
@@ -122,9 +123,9 @@ def associate_subscriber_with_slice():
     # Update existing subscriber
     Open5GS.UpdateSubscriber(imsi, sub_data)
 
-    # Save the updated data
-    with open(filename, 'w') as f:
-        json.dump(sub_data, f, indent=4)
+    # # Save the updated data
+    # with open(filename, 'w') as f:
+    #     json.dump(sub_data, f, indent=4)
 
     return jsonify({"message": "Subscriber updated successfully"}), 200
 
@@ -139,17 +140,50 @@ def delete_subscriber():
 
 @subscribers_blueprint.route('/api/subscribers', methods=['GET'])
 def get_subscribers():
-    """
-    Delete an existing subscriber
-    """
     data = Open5GS.GetSubscribers()
-    return jsonify(data), 200
+   
+    api_response = [
+    {
+        'imsi': entry['imsi'],
+        'sst': entry['slice'][0]['sst'],
+        'downlink': {
+            'value': entry['slice'][0]['session'][0]['ambr']['downlink']['value'],
+            'unit': entry['slice'][0]['session'][0]['ambr']['downlink']['unit']
+        },
+        'uplink': {
+            'value': entry['slice'][0]['session'][0]['ambr']['uplink']['value'],
+            'unit': entry['slice'][0]['session'][0]['ambr']['uplink']['unit']
+        },
+        'qos_index': entry['slice'][0]['session'][0]['qos']['index']
+    }
+    for entry in data
+    ]
+
+    # Convert the response to JSON
+    json_response = json.dumps(api_response, indent=2)
+                
+    return json_response, 200
 
 @subscribers_blueprint.route('/api/subscriber', methods=['GET'])
 def get_subscriber():
-    """
-    Delete an existing subscriber
-    """
     imsi = request.args.get('imsi')
     data = Open5GS.GetSubscriber(imsi)
-    return jsonify(data), 200
+    
+    api_response = {
+    'imsi': data['imsi'],
+    'sst': data['slice'][0]['sst'],
+    'downlink': {
+        'value': data['slice'][0]['session'][0]['ambr']['downlink']['value'],
+        'unit': data['slice'][0]['session'][0]['ambr']['downlink']['unit']
+    },
+    'uplink': {
+        'value': data['slice'][0]['session'][0]['ambr']['uplink']['value'],
+        'unit': data['slice'][0]['session'][0]['ambr']['uplink']['unit']
+    },
+    'qos_index': data['slice'][0]['session'][0]['qos']['index']
+    }
+
+    # Convert the response to JSON
+    json_response = json.dumps(api_response, indent=2)
+                
+    return json_response, 200

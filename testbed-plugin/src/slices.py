@@ -34,7 +34,7 @@ def update_core_configuration(sst, sd):
     # nssf
     # Apply the transformation to add an additional s_nssai item
     if 'nssf' in data:
-        for plmn in data['nssf']['plmn_support']:
+        for plmn in data['nssf']['sbi']['client']:
             # Check if the s_nssai list is correct and modify it if necessary
             if 's_nssai' in plmn and {'sst': sst, 'sd': sd} not in plmn['s_nssai']:
                 plmn['s_nssai'].append({'sst': sst, 'sd': sd})
@@ -47,19 +47,16 @@ def update_core_configuration(sst, sd):
 
 
 def delete_core_slice(sst, sd):
-    data = read_yaml(core_yaml_file_path)
-    amf_config = data.get('amf', {})
-    slices = amf_config.get('s_nssai', [])
+    yaml_data = read_yaml(core_yaml_file_path)
+    if 'amf' in yaml_data and 'plmn_support' in yaml_data['amf']:
+        for plmn in yaml_data['amf']['plmn_support']:
+            if 's_nssai' in plmn:
+                # Filter out s_nssai entries that match the target sst and sd
+                plmn['s_nssai'] = [s_nssai for s_nssai in plmn['s_nssai'] 
+                                   if not (s_nssai.get('sst') == sst and s_nssai.get('sd') == sd)]
+    
 
-    new_slices = [slice_ for slice_ in slices if not (slice_['sst'] == sst and slice_['sd'] == sd)]
-
-    if len(new_slices) == len(slices):
-        return None  # No slice was removed
-
-    amf_config['s_nssai'] = new_slices
-    data['amf'] = amf_config
-
-    write_yaml(core_yaml_file_path, data)
+    write_yaml(core_yaml_file_path, yaml_data)
     return {'sst': sst, 'sd': sd}
 
 
@@ -105,11 +102,11 @@ def add_slice():
 
     new_core_slice = update_core_configuration(sst, sd)
     new_ran_slice = update_ran_configuration(sst, sd)
-    os.system("sudo systemctl restart open5gs-smfd")
-    os.system("sudo systemctl restart open5gs-amfd")
-    os.system("sudo systemctl restart open5gs-upfd")
-    os.system("sudo systemctl restart open5gs-nssfd")
-    return jsonify(new_ran_slice)
+    # os.system("sudo systemctl restart open5gs-smfd")
+    # os.system("sudo systemctl restart open5gs-amfd")
+    # os.system("sudo systemctl restart open5gs-upfd")
+    # os.system("sudo systemctl restart open5gs-nssfd")
+    return jsonify(new_ran_slice), 200
 
 
 @slices_blueprint.route('/api/delete-slice', methods=['DELETE'])
@@ -130,7 +127,7 @@ def delete_slice():
     if deleted_core_slice is None or deleted_ran_slice is None:
         abort(404, 'Slice not found')
 
-    return jsonify(deleted_core_slice)
+    return jsonify(deleted_core_slice), 200
 
 @slices_blueprint.route('/api/get-slices', methods=['GET'])
 def get_slices():
