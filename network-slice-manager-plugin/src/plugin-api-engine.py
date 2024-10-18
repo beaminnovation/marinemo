@@ -4,10 +4,12 @@ import pandas as pd
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
 from datetime import datetime
+from flask_cors import CORS
 import pytz
 
 # Initialize Flask app
 app = Flask(__name__)
+CORS(app)
 
 # Configure your InfluxDB connection
 INFLUXDB_URL = 'http://localhost:8086'
