@@ -33,6 +33,7 @@ write_api = client.write_api(write_options=SYNCHRONOUS)
 
 # Define the flag
 traffic_flag = 0
+action_flag = 0
 
 
 def fetch_data_from_api():
@@ -72,6 +73,7 @@ def save_prediction_to_csv(timestamp, alert_type):
 
 def process_and_predict(testbed):
     global traffic_flag
+    global action_flag
     # Fetch the data
     data = fetch_data_from_api()
     if data is not None:
@@ -98,21 +100,24 @@ def process_and_predict(testbed):
         if 'high' in y_test_pred:
             traffic_flag = 1
             print("Traffic is high, setting flag to 1.")
-            headers = {
-                'Content-Type': 'application/json',
-            }
+            if action_flag == 0:
+                action_flag = 1
+                headers = {
+                    'Content-Type': 'application/json',
+                }
 
-            json_data = {
-                'imsi': imsi,
-                'downlink-ambr-value': testbed['downlink-ambr-value'],
-                'downlink-ambr-unit': testbed['downlink-ambr-unit'],
-                'uplink-ambr-value': testbed['uplink-ambr-value'],
-                'uplink-ambr-unit': testbed['uplink-ambr-unit'],
-            }
+                json_data = {
+                    'imsi': imsi,
+                    'downlink-ambr-value': testbed['downlink-ambr-value'],
+                    'downlink-ambr-unit': testbed['downlink-ambr-unit'],
+                    'uplink-ambr-value': testbed['uplink-ambr-value'],
+                    'uplink-ambr-unit': testbed['uplink-ambr-unit'],
+                }
 
-            response = requests.post('http://192.168.0.91:5000/api/subscriber-update', headers=headers, json=json_data)
+                response = requests.post('http://192.168.0.91:5000/api/subscriber-update', headers=headers, json=json_data)
         else:
             traffic_flag = 0
+            action_flag = 0
             print("Traffic is not high, flag remains 0.")
 
 
