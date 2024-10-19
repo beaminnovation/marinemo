@@ -143,7 +143,7 @@ def process_and_predict(testbed):
                     }
 
                     response1 = requests.post('http://192.168.0.91:5000/api/add-slice', headers=headers, json=json_data1)
-                    response2 = requests.post('http://192.168.0.91:5000/api/subscriber-update', headers=headers, json=json_data2)
+                    response2 = requests.delete('http://192.168.0.91:5000/api/subscriber-update', headers=headers, json=json_data2)
         elif counter == 9:
             traffic_flag = 0
             print("Traffic is normal, setting flag to 0.")
@@ -184,7 +184,7 @@ def process_and_predict(testbed):
                     }
 
                     response2 = requests.post('http://192.168.0.91:5000/api/subscriber-update', headers=headers, json=json_data2)
-                    response1 = requests.post('http://192.168.0.91:5000/api/delete-slice', headers=headers, json=json_data1)
+                    response1 = requests.delete('http://192.168.0.91:5000/api/delete-slice', headers=headers, json=json_data1)
 
 
 if __name__ == "__main__":
