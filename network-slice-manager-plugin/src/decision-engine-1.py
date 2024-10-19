@@ -33,9 +33,9 @@ write_api = client.write_api(write_options=SYNCHRONOUS)
 
 # Define the flag
 traffic_flag = 0
-action_flag = 0
+action_flag = 1
 scenario_flag = 1
-
+counter = 0
 
 def fetch_data_from_api():
     try:
@@ -76,6 +76,7 @@ def process_and_predict(testbed):
     global traffic_flag
     global action_flag
     global scenario
+    global counter
     # Fetch the data
     data = fetch_data_from_api()
     if data is not None:
@@ -99,8 +100,9 @@ def process_and_predict(testbed):
         imsi = "001010000000004"
 
         # Check if the traffic is estimated as high
-        if 'high' in y_test_pred:
+        if 'high' in y_test_pred and counter != 9:
             traffic_flag = 1
+            counter = counter + 1
             print("Traffic is high, setting flag to 1.")
             if action_flag == 0:
                 action_flag = 1
@@ -142,49 +144,47 @@ def process_and_predict(testbed):
 
                     response1 = requests.post('http://192.168.0.91:5000/api/add-slice', headers=headers, json=json_data1)
                     response2 = requests.post('http://192.168.0.91:5000/api/subscriber-update', headers=headers, json=json_data2)
-        else:
+        elif counter == 9:
             traffic_flag = 0
+            print("Traffic is normal, setting flag to 0.")
             if action_flag == 1:
                 action_flag = 0
                 if scenario_flag == 0:
-                    if scenario_flag == 0:
-                        headers = {
-                            'Content-Type': 'application/json',
-                        }
+                    headers = {
+                        'Content-Type': 'application/json',
+                    }
 
-                        json_data = {
-                            'imsi': imsi,
-                            'downlink-ambr-value': 1,
-                            'downlink-ambr-unit': 3,
-                            'uplink-ambr-value': 1,
-                            'uplink-ambr-unit': 3,
-                        }
+                    json_data = {
+                        'imsi': imsi,
+                        'downlink-ambr-value': 1,
+                        'downlink-ambr-unit': 3,
+                        'uplink-ambr-value': 1,
+                        'uplink-ambr-unit': 3,
+                    }
 
-                        response = requests.post('http://192.168.0.91:5000/api/subscriber-update', headers=headers, json=json_data)
+                    response = requests.post('http://192.168.0.91:5000/api/subscriber-update', headers=headers, json=json_data)
 
-                    elif scenario_flag == 1:
-                        headers = {
-                            'Content-Type': 'application/json',
-                        }
+                elif scenario_flag == 1:
+                    headers = {
+                        'Content-Type': 'application/json',
+                    }
 
-                        json_data1 = {
-                            'sst': 2,
-                            'sd': 0
-                        }
+                    json_data1 = {
+                        'sst': 2,
+                        'sd': 0
+                    }
 
-                        json_data2 = {
-                            'imsi': imsi,
-                            'sst': 1,
-                            'downlink-ambr-value': 1,
-                            'downlink-ambr-unit': 3,
-                            'uplink-ambr-value': 1,
-                            'uplink-ambr-unit': 3,
-                        }
+                    json_data2 = {
+                        'imsi': imsi,
+                        'sst': 1,
+                        'downlink-ambr-value': 1,
+                        'downlink-ambr-unit': 3,
+                        'uplink-ambr-value': 1,
+                        'uplink-ambr-unit': 3,
+                    }
 
-                        response2 = requests.post('http://192.168.0.91:5000/api/subscriber-update', headers=headers, json=json_data2)
-                        response1 = requests.post('http://192.168.0.91:5000/api/delete-slice', headers=headers, json=json_data1)
-
-            print("Traffic is not high, flag remains 0.")
+                    response2 = requests.post('http://192.168.0.91:5000/api/subscriber-update', headers=headers, json=json_data2)
+                    response1 = requests.post('http://192.168.0.91:5000/api/delete-slice', headers=headers, json=json_data1)
 
 
 if __name__ == "__main__":
