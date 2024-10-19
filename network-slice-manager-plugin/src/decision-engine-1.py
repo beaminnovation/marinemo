@@ -34,6 +34,7 @@ write_api = client.write_api(write_options=SYNCHRONOUS)
 # Define the flag
 traffic_flag = 0
 action_flag = 0
+scenario_flag = 1
 
 
 def fetch_data_from_api():
@@ -74,6 +75,7 @@ def save_prediction_to_csv(timestamp, alert_type):
 def process_and_predict(testbed):
     global traffic_flag
     global action_flag
+    global scenario
     # Fetch the data
     data = fetch_data_from_api()
     if data is not None:
@@ -102,22 +104,86 @@ def process_and_predict(testbed):
             print("Traffic is high, setting flag to 1.")
             if action_flag == 0:
                 action_flag = 1
-                headers = {
-                    'Content-Type': 'application/json',
-                }
+                # scenario 0 - update unprioritized UE profile with diminished throughput cap
+                if scenario_flag == 0:
+                    headers = {
+                        'Content-Type': 'application/json',
+                    }
 
-                json_data = {
-                    'imsi': imsi,
-                    'downlink-ambr-value': testbed['downlink-ambr-value'],
-                    'downlink-ambr-unit': testbed['downlink-ambr-unit'],
-                    'uplink-ambr-value': testbed['uplink-ambr-value'],
-                    'uplink-ambr-unit': testbed['uplink-ambr-unit'],
-                }
+                    json_data = {
+                        'imsi': imsi,
+                        'downlink-ambr-value': testbed['downlink-ambr-value'],
+                        'downlink-ambr-unit': testbed['downlink-ambr-unit'],
+                        'uplink-ambr-value': testbed['uplink-ambr-value'],
+                        'uplink-ambr-unit': testbed['uplink-ambr-unit'],
+                    }
 
-                response = requests.post('http://192.168.0.91:5000/api/subscriber-update', headers=headers, json=json_data)
+                    response = requests.post('http://192.168.0.91:5000/api/subscriber-update', headers=headers, json=json_data)
+
+                # scenario 1 - create new capped slice and provision the unprioritized UE to it
+                elif scenario_flag == 1:
+                    headers = {
+                        'Content-Type': 'application/json',
+                    }
+
+                    json_data1 = {
+                        'sst': 2,
+                        'sd': 0
+                    }
+
+                    json_data2 = {
+                        'imsi': imsi,
+                        'sst': 2,
+                        'downlink-ambr-value': testbed['downlink-ambr-value'],
+                        'downlink-ambr-unit': testbed['downlink-ambr-unit'],
+                        'uplink-ambr-value': testbed['uplink-ambr-value'],
+                        'uplink-ambr-unit': testbed['uplink-ambr-unit'],
+                    }
+
+                    response1 = requests.post('http://192.168.0.91:5000/api/add-slice', headers=headers, json=json_data1)
+                    response2 = requests.post('http://192.168.0.91:5000/api/subscriber-update', headers=headers, json=json_data2)
         else:
             traffic_flag = 0
-            action_flag = 0
+            if action_flag == 1:
+                action_flag = 0
+                if scenario_flag == 0:
+                    if scenario_flag == 0:
+                        headers = {
+                            'Content-Type': 'application/json',
+                        }
+
+                        json_data = {
+                            'imsi': imsi,
+                            'downlink-ambr-value': 1,
+                            'downlink-ambr-unit': 3,
+                            'uplink-ambr-value': 1,
+                            'uplink-ambr-unit': 3,
+                        }
+
+                        response = requests.post('http://192.168.0.91:5000/api/subscriber-update', headers=headers, json=json_data)
+
+                    elif scenario_flag == 1:
+                        headers = {
+                            'Content-Type': 'application/json',
+                        }
+
+                        json_data1 = {
+                            'sst': 2,
+                            'sd': 0
+                        }
+
+                        json_data2 = {
+                            'imsi': imsi,
+                            'sst': 1,
+                            'downlink-ambr-value': 1,
+                            'downlink-ambr-unit': 3,
+                            'uplink-ambr-value': 1,
+                            'uplink-ambr-unit': 3,
+                        }
+
+                        response2 = requests.post('http://192.168.0.91:5000/api/subscriber-update', headers=headers, json=json_data2)
+                        response1 = requests.post('http://192.168.0.91:5000/api/delete-slice', headers=headers, json=json_data1)
+
             print("Traffic is not high, flag remains 0.")
 
 
