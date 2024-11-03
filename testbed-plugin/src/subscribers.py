@@ -3,15 +3,15 @@ from socket import socket
 from Open5GS import Open5GS
 import json
 import os
+
+# connect to the UDM MongoDB database
 Open5GS = Open5GS('127.0.0.1', 27017)
 
 subscribers_blueprint = Blueprint('subscribers', __name__)
 
 @subscribers_blueprint.route('/api/subscriber-provisioning', methods=['POST'])
 def provision_subscriber():
-    """
-    Provision a new subscriber
-    """
+
     data = request.json
     if not data:
         return jsonify({"error": "Invalid request, JSON data required"}), 400
@@ -19,8 +19,8 @@ def provision_subscriber():
     imsi = data.get('imsi')
     if not imsi:
         return jsonify({"error": "IMSI is required"}), 400
-    # Implement logic to provision a subscriber using the data
-    # Preparing the slice_data based on the incoming request
+
+    # preparing the slice_data based on the incoming request
     slice_data = [{
         "sst": data.get('sst'),
         "default_indicator": True,
@@ -43,7 +43,7 @@ def provision_subscriber():
         }]
     }]
 
-    # Preparing the subscriber data
+    # preparing the subscriber data
     sub_data = {
         "imsi": data.get('imsi'),
         "subscribed_rau_tau_timer": 12,
@@ -66,13 +66,8 @@ def provision_subscriber():
         "__v": 0
     }
 
-    # Add new subscriber
+    # add the new subscriber
     Open5GS.AddSubscriber(sub_data)
-
-    # # Create the persistent json file
-    # filename = f'{imsi}.json'
-    # with open(filename, 'w') as f:
-    #     json.dump(sub_data, f, indent=4)
 
     return jsonify({"message": "Subscriber provisioned successfully"}), 200
 
@@ -87,18 +82,9 @@ def subscriber_update():
     if not imsi:
         return jsonify({"error": "IMSI is required"}), 400
 
-    # filename = f'{imsi}.json'
-    # if not os.path.exists(filename):
-    #     return jsonify({"error": f"No subscriber data found for IMSI {imsi}"}), 404
-
-    # # Implement logic to associate subscriber with slice
-    # # Load the existing data
-    # with open(filename, 'r') as f:
-    #     sub_data = json.load(f)
-
     sub_data = Open5GS.GetSubscriber(imsi)
 
-    # Update the fields provided in the request
+    # update the fields provided in the request
     sub_data['imsi'] = imsi  
     sub_data['security']['k'] = data.get('k', sub_data['security']['k'])
     sub_data['security']['opc'] = data.get('opc', sub_data['security']['opc'])
@@ -120,26 +106,21 @@ def subscriber_update():
                                                                               sub_data['slice'][0]['session'][0][
                                                                                   'ambr']['downlink']['unit'])
 
-    # Update existing subscriber
+    # update existing subscriber
     Open5GS.UpdateSubscriber(imsi, sub_data)
-
-    # # Save the updated data
-    # with open(filename, 'w') as f:
-    #     json.dump(sub_data, f, indent=4)
 
     return jsonify({"message": "Subscriber updated successfully"}), 200
 
 @subscribers_blueprint.route('/api/subscriber-delete', methods=['DELETE'])
 def delete_subscriber():
-    """
-    Delete an existing subscriber
-    """
+
     imsi = request.args.get('imsi')
     Open5GS.DeleteSubscriber(imsi)
     return jsonify({"message": f"Subscriber {imsi} deleted successfully"}), 200
 
 @subscribers_blueprint.route('/api/subscribers', methods=['GET'])
 def get_subscribers():
+    
     data = Open5GS.GetSubscribers()
    
     api_response = [
@@ -159,13 +140,14 @@ def get_subscribers():
     for entry in data
     ]
 
-    # Convert the response to JSON
+    # convert the response to JSON
     json_response = json.dumps(api_response, indent=2)
                 
     return json_response, 200
 
 @subscribers_blueprint.route('/api/subscriber', methods=['GET'])
 def get_subscriber():
+    
     imsi = request.args.get('imsi')
     data = Open5GS.GetSubscriber(imsi)
     
@@ -183,7 +165,7 @@ def get_subscriber():
     'qos_index': data['slice'][0]['session'][0]['qos']['index']
     }
 
-    # Convert the response to JSON
+    # convert the response to JSON
     json_response = json.dumps(api_response, indent=2)
                 
     return json_response, 200

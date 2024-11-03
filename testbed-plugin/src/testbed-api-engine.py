@@ -4,7 +4,7 @@ from subscribers import subscribers_blueprint
 
 app = Flask(__name__)
 
-# Register blueprints
+# register blueprints
 app.register_blueprint(slices_blueprint)
 app.register_blueprint(subscribers_blueprint)
 

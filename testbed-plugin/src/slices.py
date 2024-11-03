@@ -4,10 +4,9 @@ import os
 
 slices_blueprint = Blueprint('slices', __name__)
 
-# Paths to the YAML files
+# paths to the CN/RAN configuration YAML files
 core_yaml_file_path = 'sample.yaml'
 ran_yaml_file_path = 'gnb_b210.yml'
-
 
 def read_yaml(file_path):
     with open(file_path, 'r') as file:
@@ -20,60 +19,58 @@ def write_yaml(file_path, data):
 def update_core_configuration(sst, sd):
     data = read_yaml(core_yaml_file_path)
     # amf
-    # Apply the transformation to add an additional s_nssai item
+    # add an additional s_nssai value
     if 'amf' in data:
         for plmn in data['amf']['plmn_support']:
-            # Check if the s_nssai list is correct and modify it if necessary
+            # check if the s_nssai list is correct and modify it if necessary
             if 's_nssai' in plmn and {'sst': sst, 'sd': sd} not in plmn['s_nssai']:
                 plmn['s_nssai'].append({'sst': sst, 'sd': sd})
 
-    # Save the modified data to a new YAML file with customized indentation
+    # save the modified data to the YAML file
     with open(core_yaml_file_path, 'w') as file:
         yaml.safe_dump(data, file, default_flow_style=False, indent=2)
 
     # nssf
-    # Apply the transformation to add an additional s_nssai item
+    # add an additional s_nssai value
     if 'nssf' in data:
         for plmn in data['nssf']['sbi']['client']:
-            # Check if the s_nssai list is correct and modify it if necessary
+            # check if the s_nssai list is correct and modify it if necessary
             if 's_nssai' in plmn and {'sst': sst, 'sd': sd} not in plmn['s_nssai']:
                 plmn['s_nssai'].append({'sst': sst, 'sd': sd})
 
-    # Save the modified data to a new YAML file with customized indentation
+    # save the modified data to the YAML file
     with open(core_yaml_file_path, 'w') as file:
         yaml.safe_dump(data, file, default_flow_style=False, indent=2)
 
     return {'sst': sst, 'sd': sd}
 
-
-def delete_core_slice(sst, sd):
-    yaml_data = read_yaml(core_yaml_file_path)
-    if 'amf' in yaml_data and 'plmn_support' in yaml_data['amf']:
-        for plmn in yaml_data['amf']['plmn_support']:
-            if 's_nssai' in plmn:
-                # Filter out s_nssai entries that match the target sst and sd
-                plmn['s_nssai'] = [s_nssai for s_nssai in plmn['s_nssai'] 
-                                   if not (s_nssai.get('sst') == sst and s_nssai.get('sd') == sd)]
-    
-
-    write_yaml(core_yaml_file_path, yaml_data)
-    return {'sst': sst, 'sd': sd}
-
-
 def update_ran_configuration(sst, sd):
     data = read_yaml(ran_yaml_file_path)
 
-    # Add the new slicing entry
+    # add an additional s_nssai value
     new_slicing_entry = {'sst': sst, 'sd': sd}
     if 'slicing' in data:
         data['slicing'].append(new_slicing_entry)
     else:
         data['slicing'] = [new_slicing_entry]
 
-    # Save the modified data back to a new YAML file
+    # save the modified data to the YAML file
     with open(ran_yaml_file_path, 'w') as file:
         yaml.safe_dump(data, file, default_flow_style=False)
 
+    return {'sst': sst, 'sd': sd}
+
+def delete_core_slice(sst, sd):
+    yaml_data = read_yaml(core_yaml_file_path)
+    if 'amf' in yaml_data and 'plmn_support' in yaml_data['amf']:
+        for plmn in yaml_data['amf']['plmn_support']:
+            if 's_nssai' in plmn:
+                # filter out s_nssai entries that match the target sst and sd values
+                plmn['s_nssai'] = [s_nssai for s_nssai in plmn['s_nssai'] 
+                                   if not (s_nssai.get('sst') == sst and s_nssai.get('sd') == sd)]
+    
+
+    write_yaml(core_yaml_file_path, yaml_data)
     return {'sst': sst, 'sd': sd}
 
 def delete_ran_slice(sst, sd):
@@ -83,13 +80,12 @@ def delete_ran_slice(sst, sd):
     new_slicing = [slice_ for slice_ in slicing if not (slice_['sst'] == sst and slice_['sd'] == sd)]
 
     if len(new_slicing) == len(slicing):
-        return None  # No slice was removed
+        return None
 
     data['slicing'] = new_slicing
 
     write_yaml(ran_yaml_file_path, data)
     return {'sst': sst, 'sd': sd}
-
 
 @slices_blueprint.route('/api/add-slice', methods=['POST'])
 def add_slice():
@@ -102,12 +98,7 @@ def add_slice():
 
     new_core_slice = update_core_configuration(sst, sd)
     new_ran_slice = update_ran_configuration(sst, sd)
-    # os.system("sudo systemctl restart open5gs-smfd")
-    # os.system("sudo systemctl restart open5gs-amfd")
-    # os.system("sudo systemctl restart open5gs-upfd")
-    # os.system("sudo systemctl restart open5gs-nssfd")
     return jsonify(new_ran_slice), 200
-
 
 @slices_blueprint.route('/api/delete-slice', methods=['DELETE'])
 def delete_slice():

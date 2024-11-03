@@ -1,5 +1,5 @@
 # MARINEMO
-Network slicing plugin for maritime IoT applications
+Network slicing manager plugin for maritime IoT applications
 
 ## Project Overview
 
@@ -16,65 +16,45 @@ MARINEMO is a comprehensive solution designed to enhance maritime operations thr
 
 ```
 project-root/
-├── config/
-│ └── config.yaml
-├── data/
-│ ├── raw/
-│ ├── processed/
-│ └── models/
-├── docs/
-│ ├── architecture.md
-│ ├── user_guide.md
-│ └── api_documentation.md
-├── src/
-│ ├── main.py
-│ ├── api/
-│ │ ├── flask_app.py
-│ │ └── endpoints/
-│ │ ├── alerts.py
-│ │ └── decisions.py
-│ ├── data_processing/
-│ │ ├── data_processor.py
-│ │ ├── ml_model.py
-│ │ └── kafka_consumer.py
-│ ├── decision_engine/
-│ │ ├── decision_engine.py
+├── network-slice-manager-plugin/
+│ ├── src/
+│ │ ├── decision-engine-1.py
+│ │ ├── plugin-api-engine.py
+│ │ ├── train.py
+│ │ ├── web-app.py
+│ │ └── datasets/
+│ │ ├── CPE_high.csv
+│ │ ├── CPE_medium.csv
+│ │ ├── CPE_normal.csv
+│ │ └── CPE_normal_medium.py
+│ │ └── examples/
+│ │ ├── monitoring-1.csv
+│ │ ├── traffic_change_alerts_1.csv
+│ │ └── testbed-1.json
+│ │ └── models/
+│ │ ├── scaler.joblib
+│ │ └── traffic_model.joblib
 │ │ └── templates/
-│ │ ├── high_latency_template.py
-│ │ ├── high_signal_template.py
-│ │ └── others.py
-│ ├── monitoring/
-│ │ ├── monitoring_engine.py
-│ │ └── db_handler.py
-│ └── utils/
-│ ├── logger.py
-│ └── helpers.py
-├── tests/
-│ ├── test_api/
-│ │ ├── test_alerts.py
-│ │ └── test_decisions.py
-│ ├── test_data_processing/
-│ │ ├── test_data_processor.py
-│ │ └── test_ml_model.py
-│ ├── test_decision_engine/
-│ │ ├── test_decision_engine.py
-│ │ └── test_templates.py
-│ ├── test_monitoring/
-│ │ ├── test_monitoring_engine.py
-│ │ └── test_db_handler.py
-│ └── test_utils/
-│ ├── test_logger.py
-│ └── test_helpers.py
+│ │ └── index.html
+├── testbed-plugin/
+│ ├── src/
+│ │ ├── acs-server.py
+│ │ ├── Open5GS.py
+│ │ ├── slices.py
+│ │ ├── subscribers.py
+│ │ ├── testbed-api-engine.py
+│ │ └── testbed-monitoring-engine.py
 ├── .gitignore
+├── LICENSE
 ├── README.md
 └── requirements.txt
 ```
 
-- **config/**: Configuration files for the project.
-- **data/**: Storage for raw and processed data, and machine learning models.
-- **docs/**: Documentation files for architecture, user guide, and API documentation.
 - **src/**: Source code for the main components of the project.
-- **tests/**: Unit and integration tests for the project.
+- **datasets/**: Datasets used for training the AI/ML model used by the Slice Manager Plugin.
+- **examples/**: Example files for testbed-specific slice manager behaviour, alerting and monitoring data.
+- **models/**: A/ML model computed by the Slice Manager Plugin based on the given datasets.
+- **templates/**: Slice Manager Plugin dashboard HTML web interface files.
 - **requirements.txt**: Python dependencies for the project.
 
 ## Getting Started
@@ -82,9 +62,8 @@ project-root/
 ### Prerequisites
 
 - Python 3.8 or higher
-- Docker (optional, for containerized deployment)
-- Kafka
-- PostgreSQL or any other supported SQL database
+- Kafka (optional)
+- InfluxDB (optional)
 
 ### Installation
 
@@ -99,7 +78,7 @@ project-root/
 
    ```
    python -m venv venv
-   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+   source venv/bin/activate
    ```
 
 3. Install the dependencies
@@ -108,31 +87,33 @@ project-root/
    pip install -r requirements.txt
    ```
 
-4. Configure the project settings in `config/config.yaml`.
-
-5. Run the application:
+5. Run the Slice Manager Plugin:
 
    ```
-   python src/main.py
+   python network-slice-manager-plugin/src/web-app.py
+   python network-slice-manager-plugin/src/plugin-api-engine.py
+   python network-slice-manager-plugin/src/decision-making-engine.py
    ```
 
-# Usage
+# Slice Manager Plugin components
+
+## Data Ingestion Pipeline
+
+This module continuously gathers network traffic information by interrogating the testbed-specific Performance Monitoring Agents.
 
 ## Data Processing
 
-The data_processing module processes incoming data from IoT sensors, trains machine learning models, and generates alerts.
+This module saves the monitoring data coming from the Data Ingestion Pipeline and the predictions coming from the AI/ML block to persistent CSV files.
 
-## Decision Engine
+## Decision Making Engine
 
-The decision_engine module consumes alerts, evaluates them against predefined thresholds, and makes decisions based on templates.
+This module consumes live monitoring data, evaluates them using the trained AI/ML model, and makes decisions based on testbed-specific templates and scenarios.
 
-## Monitoring
+## Plugin API Engine
 
-The monitoring module continuously monitors network parameters and provides real-time alerts.
-
-## API Endpoints
-
-Use the API endpoints to fetch alerts and make decisions. Refer to the API Documentation for details on available endpoints and their usage.
+This module exposes several endpoints to configure the behaviour of the Slice Manager Plugin, fetch testbed-specific alerts and performance analytics. 
+Refer to the API Documentation for details on available endpoints and their usage:
+https://app.swaggerhub.com/apis/RazvanMihai/slice-manager-plugin/1.0
 
 ## Contributing
 
