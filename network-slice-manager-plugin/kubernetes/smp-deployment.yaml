@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smp-deployment
+  labels:
+    app: smp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: smp
+  template:
+    metadata:
+      labels:
+        app: smp
+    spec:
+      containers:
+      - name: smp-container
+        image: razvanm3/smp-image-v1
+        ports:
+        - containerPort: 1025 
